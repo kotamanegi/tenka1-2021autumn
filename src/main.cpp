@@ -179,7 +179,8 @@ struct Bot
 		for (;;)
 		{
 			game = call_game();
-
+			sort(game.owned_resource.begin(), game.owned_resource.end(), [](auto &l, auto &r)
+					 { return l.amount > r.amount; });
 			for (const auto &o : game.owned_resource)
 			{
 				fprintf(stderr, "%s: %.2f ", o.type.c_str(), o.amount);
@@ -189,7 +190,7 @@ struct Bot
 			vector<Resource> resource;
 			for (const auto &r : game.resource)
 			{
-				if (r.t0 <= game.now && game.now < r.t1)
+				if (game.now < r.t1)
 				{
 					resource.push_back(r);
 				}
@@ -201,35 +202,39 @@ struct Bot
 			while (game.agent.size() > 0)
 			{
 				double now_eval = -1;
-				int target_x, target_y, target_agent;
-				int index = 0;
-				int Del = 0;
+				int AgentIndex = 0;
+				int ResourceIndex = 0;
 				for (int it = 0; it < game.agent.size(); ++it)
 				{
 					auto agent = game.agent[it];
-					for (int i = 0; i < resource.size(); ++i)
+					for (int i = resource.size() - 1; i >= 0; --i)
 					{
 						double kyori = 100.0 * dist(make_pair(agent.move.back().x, agent.move.back().y), make_pair(resource[i].x, resource[i].y));
+						kyori = max(kyori, (double)resource[i].t0 - game.now);
 						double pricing = (double)resource[i].weight / (double)(already[i] + 1);
-						if (resource[i].type == "B")
+						pricing *= max(50.0, min((resource[i].t0 - (game.now + kyori)), 1000.0) / 10.0); //bonus
+						double times = min(1.0, (resource[i].t1 - max((double)resource[i].t0, (game.now + kyori))) / (double)(resource[i].t1 - resource[i].t0));
+						pricing *= times * times * times;
+						for (int q = 0; q < 3; ++q)
 						{
-							pricing *= 10;
+							if (resource[i].type == game.owned_resource[q].type)
+							{
+								break;
+							}
+							pricing *= 5;
 						}
-						double eval = pricing / (kyori + 100.0);
+						double eval = pricing / (kyori + 500.0);
 						if (eval > now_eval)
 						{
 							now_eval = eval;
-							target_x = resource[i].x;
-							target_y = resource[i].y;
-							target_agent = agent.id;
-							index = it;
-							Del = i;
+							AgentIndex = it;
+							ResourceIndex = i;
 						}
 					}
 				}
-				call_move(target_agent, target_x, target_y);
-				already[Del]++;
-				game.agent.erase(game.agent.begin() + index);
+				call_move(game.agent[AgentIndex].id, resource[ResourceIndex].x, resource[ResourceIndex].y);
+				already[ResourceIndex]++;
+				game.agent.erase(game.agent.begin() + AgentIndex);
 			}
 			this_thread::sleep_for(chrono::milliseconds(1000));
 		}
