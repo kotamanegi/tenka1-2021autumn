@@ -21,7 +21,6 @@ p = subprocess.Popen(sys.argv[1:], stdin=subprocess.PIPE, stdout=subprocess.PIPE
 
 def call_api(x: str) -> dict:
     url = f'{GAME_SERVER}{x}'
-    print(url)
     with urlopen(url) as res:
         return json.loads(res.read())
 

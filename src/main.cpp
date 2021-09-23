@@ -13,35 +13,43 @@
 #include <queue>
 #include <random>
 #include <algorithm>
+#include "bits/stdc++.h"
 using namespace std;
 
 mt19937 mt;
 
-struct AgentMove {
+struct AgentMove
+{
 	double x, y;
 	int t;
 };
 
-struct Agent {
+struct Agent
+{
+	int id;
 	vector<AgentMove> move;
 };
 
-struct Resource {
+struct Resource
+{
 	int id, x, y, t0, t1;
 	string type;
 	int weight;
 };
 
-struct ResourceWithAmount : public Resource {
+struct ResourceWithAmount : public Resource
+{
 	double amount;
 };
 
-struct OwnedResource {
+struct OwnedResource
+{
 	string type;
 	double amount;
 };
 
-struct Game {
+struct Game
+{
 	int now;
 	vector<Agent> agent;
 	vector<Resource> resource;
@@ -49,64 +57,80 @@ struct Game {
 	vector<OwnedResource> owned_resource;
 };
 
-struct Move {
+struct Move
+{
 	int now;
 	vector<AgentMove> move;
 };
 
-struct Resources {
+struct Resources
+{
 	vector<ResourceWithAmount> resource;
 };
 
-Game call_game() {
+Game call_game()
+{
 	cout << "game" << endl;
 	Game res;
 	int num_agent, num_resource, num_owned_resource;
 	cin >> res.now >> num_agent >> num_resource >> res.next_resource >> num_owned_resource;
 	res.agent.resize(num_agent);
-	for (auto& a : res.agent) {
+	int cnt = 1;
+	for (auto &a : res.agent)
+	{
+		a.id = cnt;
+		cnt++;
 		int num_move;
 		cin >> num_move;
 		a.move.resize(num_move);
-		for (auto& m : a.move) {
+		for (auto &m : a.move)
+		{
 			cin >> m.x >> m.y >> m.t;
 		}
 	}
 	res.resource.resize(num_resource);
-	for (auto& r : res.resource) {
+	for (auto &r : res.resource)
+	{
 		cin >> r.id >> r.x >> r.y >> r.t0 >> r.t1 >> r.type >> r.weight;
 	}
 	res.owned_resource.resize(num_owned_resource);
-	for (auto& o : res.owned_resource) {
+	for (auto &o : res.owned_resource)
+	{
 		cin >> o.type >> o.amount;
 	}
 	return res;
 }
 
-Move read_move() {
+Move read_move()
+{
 	Move res;
 	int num_move;
 	cin >> res.now >> num_move;
 	res.move.resize(num_move);
-	for (auto& m : res.move) {
+	for (auto &m : res.move)
+	{
 		cin >> m.x >> m.y >> m.t;
 	}
 	return res;
 }
 
-Move call_move(int index, int x, int y) {
+Move call_move(int index, int x, int y)
+{
 	cout << "move " << index << " " << x << " " << y << endl;
 	return read_move();
 }
 
-Move call_will_move(int index, int x, int y, int t) {
+Move call_will_move(int index, int x, int y, int t)
+{
 	cout << "will_move " << index << " " << x << " " << y << " " << t << endl;
 	return read_move();
 }
 
-Resources call_resources(vector<int> ids) {
+Resources call_resources(vector<int> ids)
+{
 	cout << "resources";
-	for (auto id : ids) {
+	for (auto id : ids)
+	{
 		cout << " " << id;
 	}
 	cout << endl;
@@ -114,64 +138,106 @@ Resources call_resources(vector<int> ids) {
 	int num_resource;
 	cin >> num_resource;
 	res.resource.resize(num_resource);
-	for (auto& r : res.resource) {
+	for (auto &r : res.resource)
+	{
 		cin >> r.id >> r.x >> r.y >> r.t0 >> r.t1 >> r.type >> r.weight >> r.amount;
 	}
 	return res;
 }
 
-double calc_score(const Game& game) {
+double calc_score(const Game &game)
+{
 	vector<double> a;
-	for (const auto& o : game.owned_resource) {
+	for (const auto &o : game.owned_resource)
+	{
 		a.push_back(o.amount);
 	}
 	sort(a.begin(), a.end());
 	return a[0] + 0.1 * a[1] + 0.01 * a[2];
 }
 
-struct Bot {
+bool isExists(const AgentMove &ag, vector<Resource> &res)
+{
+	for (auto r : res)
+	{
+		if (ag.x == r.x and ag.y == r.y)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+double dist(pair<int, int> a, pair<int, int> b)
+{
+	return sqrt(pow(a.first - b.first, 2) + pow(a.second - b.second, 2));
+}
+struct Bot
+{
 	Game game;
-	void solve() {
-		for (;;) {
+	void solve()
+	{
+		for (;;)
+		{
 			game = call_game();
 
-			for (const auto& o : game.owned_resource) {
+			for (const auto &o : game.owned_resource)
+			{
 				fprintf(stderr, "%s: %.2f ", o.type.c_str(), o.amount);
 			}
 			fprintf(stderr, "Score: %.2f\n", calc_score(game));
 
-			set<pair<int,int>> resource_positions;
-			for (const auto& r : game.resource) {
-				if (r.t0 <= game.now && game.now < r.t1) {
-					resource_positions.insert({r.x, r.y});
+			vector<Resource> resource;
+			for (const auto &r : game.resource)
+			{
+				if (r.t0 <= game.now && game.now < r.t1)
+				{
+					resource.push_back(r);
 				}
 			}
+			sort(resource.begin(), resource.end(), [](auto &l, auto &r)
+					 { return l.weight > r.weight; });
 
-			vector<int> index_list;
-			for (int i = 0; i < 5; ++ i) {
-				const auto& m = game.agent[i].move.back();
-				if (resource_positions.count({m.x, m.y})) {
-					resource_positions.erase({m.x, m.y});
-				} else {
-					index_list.push_back(i+1);
+			std::map<int, int> already;
+			while (game.agent.size() > 0)
+			{
+				double now_eval = -1;
+				int target_x, target_y, target_agent;
+				int index = 0;
+				int Del = 0;
+				for (int it = 0; it < game.agent.size(); ++it)
+				{
+					auto agent = game.agent[it];
+					for (int i = 0; i < resource.size(); ++i)
+					{
+						double kyori = 100.0 * dist(make_pair(agent.move.back().x, agent.move.back().y), make_pair(resource[i].x, resource[i].y));
+						double pricing = (double)resource[i].weight / (double)(already[i] + 1);
+						if (resource[i].type == "B")
+						{
+							pricing *= 10;
+						}
+						double eval = pricing / (kyori + 100.0);
+						if (eval > now_eval)
+						{
+							now_eval = eval;
+							target_x = resource[i].x;
+							target_y = resource[i].y;
+							target_agent = agent.id;
+							index = it;
+							Del = i;
+						}
+					}
 				}
+				call_move(target_agent, target_x, target_y);
+				already[Del]++;
+				game.agent.erase(game.agent.begin() + index);
 			}
-
-			for (int index : index_list) {
-				if (resource_positions.empty()) break;
-				int r = uniform_int_distribution<>(0, resource_positions.size()-1)(mt);
-				auto it = resource_positions.begin();
-				for (int i = 0; i < r; ++ i) ++ it;
-				call_move(index, it->first, it->second);
-				resource_positions.erase(it);
-			}
-
 			this_thread::sleep_for(chrono::milliseconds(1000));
 		}
 	}
 };
 
-int main() {
+int main()
+{
 	random_device seed_gen;
 	mt = mt19937(seed_gen());
 
