@@ -216,13 +216,17 @@ struct Bot
 						pricing *= max(50.0, min((resource[i].t0 - (game.now + kyori)), 1000.0) / 10.0); //bonus
 						double times = min(1.0, (resource[i].t1 - max((double)resource[i].t0, (game.now + kyori))) / (double)(resource[i].t1 - resource[i].t0));
 						pricing *= times * times * times * times * times;
-						if (resource[i].type == "B")
-						{
-							pricing *= 20;
-						}
 						if (resource[i].type == "A")
 						{
-							pricing *= 3;
+							pricing *= 100;
+						}
+						if (resource[i].type == "B")
+						{
+							pricing *= 1000;
+						}
+						if (resource[i].type == "C")
+						{
+							pricing *= 150;
 						}
 						double eval = pricing / (kyori + 500.0);
 						if (eval > now_eval)
