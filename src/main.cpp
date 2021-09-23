@@ -204,6 +204,7 @@ struct Bot
 				double now_eval = -1;
 				int AgentIndex = 0;
 				int ResourceIndex = 0;
+				int timing = game.now;
 				for (int it = 0; it < game.agent.size(); ++it)
 				{
 					auto agent = game.agent[it];
@@ -214,26 +215,28 @@ struct Bot
 						double pricing = (double)resource[i].weight / (double)(already[i] + 1);
 						pricing *= max(50.0, min((resource[i].t0 - (game.now + kyori)), 1000.0) / 10.0); //bonus
 						double times = min(1.0, (resource[i].t1 - max((double)resource[i].t0, (game.now + kyori))) / (double)(resource[i].t1 - resource[i].t0));
-						pricing *= times * times * times;
-						for (int q = 0; q < 3; ++q)
+						pricing *= times * times * times * times * times;
+						if (resource[i].type == "B")
 						{
-							if (resource[i].type == game.owned_resource[q].type)
-							{
-								break;
-							}
-							pricing *= 5;
+							pricing *= 20;
+						}
+						if (resource[i].type == "A")
+						{
+							pricing *= 3;
 						}
 						double eval = pricing / (kyori + 500.0);
 						if (eval > now_eval)
 						{
+							kyori = 100.0 * dist(make_pair(agent.move.back().x, agent.move.back().y), make_pair(resource[i].x, resource[i].y));
 							now_eval = eval;
 							AgentIndex = it;
 							ResourceIndex = i;
+							timing = resource[i].t0 - kyori - 1000;
 						}
 					}
 				}
 				call_move(game.agent[AgentIndex].id, resource[ResourceIndex].x, resource[ResourceIndex].y);
-				already[ResourceIndex]++;
+				already[ResourceIndex] += 1;
 				game.agent.erase(game.agent.begin() + AgentIndex);
 			}
 			this_thread::sleep_for(chrono::milliseconds(1000));
